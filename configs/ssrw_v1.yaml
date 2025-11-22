@@ -1,0 +1,35 @@
+experiment_name: "ssrw_cross_attention_v1"
+device: "mps"
+
+data:
+  train_dir: "./datasets/mirflickr/train"
+  val_dir: "./datasets/mirflickr/val"
+  image_size: 128       # 
+  watermark_len: 64     # 
+  batch_size: 64        # 
+  num_workers: 4
+
+model:
+  patch_size: 8         # [cite: 180]
+  embed_dim: 64         # [cite: 374]
+  num_heads: 16         # [cite: 181]
+  hidden_dim: 256
+  
+training:
+  epochs: 200           # 
+  learning_rate: 0.0001 # Typical default, tune if needed
+  save_interval: 10
+  
+  loss_weights:           # 
+  lambda_l2: 2.0
+  lambda_lpips: 1.5
+  lambda_ssim: 1.0
+  lambda_dec: 1.5
+  lambda_disc: 0.5
+
+noise_layer:
+  # Probabilities for applying distortions [cite: 242]
+  prob_perspective: 0.9
+  prob_light: 0.6
+  prob_blur: 0.5
+  prob_moire: 0.8
