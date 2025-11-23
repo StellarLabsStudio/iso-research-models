@@ -38,13 +38,6 @@ This repository includes:
     training/
         ...
 
-    evaluation/
-        metrics/
-        ...
-
-    experiments/
-        ...
-
     scripts/
         download_data.py
         convert_weights.py
