@@ -1,5 +1,7 @@
 # train_ssrw_v2.py
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 import yaml
 import torch
@@ -13,7 +15,7 @@ import glob
 import kornia.losses as KL
 from tqdm import tqdm
 
-from ssrw_v2 import CrossAttentionEncoder, EnhancedUNetDecoder, Discriminator, NoiseLayer
+from models.ssrw_v2.ssrw_v2 import CrossAttentionEncoder, EnhancedUNetDecoder, Discriminator, NoiseLayer
 
 # -------------------------------------------------------
 # Dataset
@@ -39,7 +41,9 @@ class SimpleImageDataset(Dataset):
 # SSIM Loss
 # -------------------------------------------------------
 def ssim_loss(a,b):
-    return 1 - KL.ssim(a,b,window_size=11,reduction='mean')
+    # Correct: Calls the function directly. 
+    # Note: ssim_loss already returns (1 - SSIM), so we remove the "1 -"
+    return KL.ssim_loss(a, b, window_size=11, reduction='mean')
 
 # -------------------------------------------------------
 # Train
@@ -140,4 +144,4 @@ def train(config_path):
     print("Training finished.")
     
 if __name__ == "__main__":
-    train("ssrw_v2.yaml")
+    train("/Users/devmody/Documents/StellarLabs/iso-research-models/configs/ssrw_v2.yaml")
