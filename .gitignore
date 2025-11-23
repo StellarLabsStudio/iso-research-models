@@ -1,5 +1,5 @@
-ssrw-venv/
+venvs/
 configs/
 datasets/
 requirements/
-training/weights/
+training/ssrw-v1/weights/
