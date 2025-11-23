@@ -2,8 +2,8 @@ experiment_name: "ssrw_cross_attention_v1"
 device: "mps"
 
 data:
-  train_dir: "./datasets/mirflickr/train"
-  val_dir: "./datasets/mirflickr/val"
+  train_dir: "/Users/devmody/Documents/StellarLabs/iso-research-models/datasets/SSRW/split/mirflickr/train"
+  val_dir: "/Users/devmody/Documents/StellarLabs/iso-research-models/datasets/SSRW/split/mirflickr/val"
   image_size: 128       # 
   watermark_len: 64     # 
   batch_size: 64        # 
@@ -20,7 +20,7 @@ training:
   learning_rate: 0.0001 # Typical default, tune if needed
   save_interval: 10
   
-  loss_weights:           # 
+loss_weights:
   lambda_l2: 2.0
   lambda_lpips: 1.5
   lambda_ssim: 1.0
