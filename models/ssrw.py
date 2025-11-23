@@ -79,7 +79,7 @@ class NoiseLayer (nn.Module):
         self.blur = K.RandomGaussianBlur((3,3), (0.1, 2.0), p=self.probs['prob_blur'])
         
         # Lighting (approximated with ColorJitter for brightness/contrast) [cite: 202]
-        self.lighting = K.ColorJitter(brightness=0.2, contrast=0.2, p=self.probs['prob_lighting'])
+        self.lighting = K.ColorJitter(brightness=0.2, contrast=0.2, p=self.probs['prob_light'])
         
         
     def forward (self, x):

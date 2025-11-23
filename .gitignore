@@ -1,2 +1,4 @@
 ssrw-venv/
-configs/ssrw_v1.yaml
+configs/
+datasets/
+requirements/
