@@ -15,6 +15,7 @@ from tqdm import tqdm
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 from models.ssrw import CrossAttentionEncoder, EnhancedUNetDecoder, Discriminator, NoiseLayer
 
 class SimpleImageDataset(Dataset):
