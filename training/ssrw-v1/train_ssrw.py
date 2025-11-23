@@ -15,10 +15,7 @@ import glob
 from PIL import Image
 from tqdm import tqdm
 
-# Import Architecture from Local Models Directory
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from models.ssrw import CrossAttentionEncoder, EnhancedUNetDecoder, Discriminator, NoiseLayer
+from models.ssrw_v1.ssrw import CrossAttentionEncoder, EnhancedUNetDecoder, Discriminator, NoiseLayer
 class SimpleImageDataset(Dataset):
     
     """

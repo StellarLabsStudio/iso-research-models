@@ -6,8 +6,9 @@ from PIL import Image
 import kornia.metrics as KM
 from tqdm import tqdm
 
-from ssrw_v2 import CrossAttentionEncoder, EnhancedUNetDecoder, NoiseLayer
+# NOW you can import the module
 
+from models.ssrw_v2.ssrw_v2 import CrossAttentionEncoder, EnhancedUNetDecoder, NoiseLayer, Discriminator
 class SimpleImageDataset(Dataset):
     def __init__(self, root, transform=None):
         self.paths = glob.glob(os.path.join(root,"*.jpg")) + \

@@ -131,7 +131,7 @@ class NoiseLayer(nn.Module):
                 src = torch.tensor([[0,0],[W-1,0],[W-1,H-1],[0,H-1]], device=img.device).float()
                 jitter = max(2, int(0.02 * max(H,W)))
                 dst = src + (torch.rand_like(src)-0.5)*2*jitter
-                H_mat = GT.find_homography_dlt(src.unsqueeze(0), dst.unsqueeze(0))[0]
+                H_mat = GT.get_perspective_transform(src.unsqueeze(0), dst.unsqueeze(0))[0]
                 warped.append(GT.warp_perspective(img[i:i+1], H_mat.unsqueeze(0), (H,W)))
             out = torch.cat(warped, dim=0)
 
