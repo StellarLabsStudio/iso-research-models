@@ -1,3 +1,7 @@
+import os
+# FIX: This must be set BEFORE importing torch
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
 import argparse
 from json import encoder
 import yaml
@@ -13,11 +17,8 @@ from tqdm import tqdm
 
 # Import Architecture from Local Models Directory
 import sys
-import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 from models.ssrw import CrossAttentionEncoder, EnhancedUNetDecoder, Discriminator, NoiseLayer
-
 class SimpleImageDataset(Dataset):
     
     """
@@ -45,7 +46,7 @@ class SimpleImageDataset(Dataset):
             # Return a black image of correct size if load fails to prevent crash
             return torch.zeros(3, 128, 128)
     
-def train (config_path):
+def train (config_path, resume_path=None):
     # Load Configuration
     with open(config_path, 'r') as f:
         cfg = yaml.safe_load(f)
@@ -94,10 +95,30 @@ def train (config_path):
         num_workers=cfg['data']['num_workers']
     )
     
+    start_epoch = 0
+    if resume_path:
+        if os.path.exists(resume_path):
+            print(f"Loading checkpoint from '{resume_path}'")
+            checkpoint = torch.load(resume_path, map_location=device)
+            
+            # Load model weights
+            encoder.load_state_dict(checkpoint['encoder'])
+            decoder.load_state_dict(checkpoint['decoder'])
+            discriminator.load_state_dict(checkpoint['discriminator'])
+            
+            # Load optimizer state (important for continuity)
+            opt_enc_dec.load_state_dict(checkpoint['optimizer'])
+            
+            # Set start epoch
+            start_epoch = checkpoint['epoch'] + 1
+            print(f"Resuming training from Epoch {start_epoch}")
+        else:
+            print(f"No checkpoint found at '{resume_path}'. Starting from scratch.")
+    
     print(f"Starting training loop with {len(train_dataset)} images...")
     
     # --- Training Loop ---
-    for epoch in range(cfg['training']['epochs']):
+    for epoch in range(start_epoch, cfg['training']['epochs']):
         encoder.train()
         decoder.train()
         discriminator.train()
@@ -192,5 +213,6 @@ def train (config_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='/Users/devmody/Documents/StellarLabs/iso-research-models/configs/ssrw_v1.yaml')
+    parser.add_argument('--resume', type=str, default=None, help="Path to checkpoint to resume from")
     args = parser.parse_args()
-    train(args.config)
+    train(args.config, args.resume)

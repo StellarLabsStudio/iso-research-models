@@ -2,3 +2,4 @@ ssrw-venv/
 configs/
 datasets/
 requirements/
+training/weights/

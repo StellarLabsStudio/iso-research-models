@@ -137,7 +137,7 @@ class EnhancedUNetDecoder (nn.Module):
         b = self.bottleneck(e3)
                 
         #Decoder    
-        d3 = self.dec3(torch.cat([self.up3(b), e3], dim=1))
+        d3 = self.dec3(torch.cat([b, e3], dim=1))
         d2 = self.dec2(torch.cat([self.up2(d3), e2], dim=1))
         d1 = self.dec1(torch.cat([self.up1(d2), e1], dim=1))
         

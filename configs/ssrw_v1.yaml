@@ -17,7 +17,7 @@ model:
   
 training:
   epochs: 200           # 
-  learning_rate: 0.0001 # Typical default, tune if needed
+  learning_rate: 0.00001 # Typical default, tune if needed
   save_interval: 10
   
 loss_weights:
