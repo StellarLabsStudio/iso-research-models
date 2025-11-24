@@ -27,21 +27,26 @@ This repository includes:
     iso-research-models/
 
     models/
-        ...
+        ssrw_v1/
+        ssrw_v2/
 
     datasets/
-        coco/
-        laion/
-        camera/
-        custom/
+        raw/
+            coco/
+            msflickr/
+        split/
+            coco/
+                test/
+            msflickr/
+                train/
+                val/
 
     training/
-        ...
+        ssrw_v1/
+        ssrw_v2/
 
     scripts/
-        download_data.py
-        convert_weights.py
-        visualize_results.py
+        setup_ssrwdatasets.py
 
     docs/
         model_cards/
@@ -49,10 +54,13 @@ This repository includes:
         research-papers/
 
     tests/
-
+        ssrw_v1/
+        ssrw_v2/
+        
     configs/
-
-    requirements.txt
+        ssrw_v1.yaml
+        ssrw_v2.yaml
+    
     LICENSE
     README.md
 
