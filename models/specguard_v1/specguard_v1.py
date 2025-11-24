@@ -1,5 +1,6 @@
 # models/specguard/specguard.py
 
+from sympy import zeta
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -56,3 +57,156 @@ class IWT (nn.Module):
         
         return y
 
+# --------------------------------------------------------
+# 2. Spectral Projection (FFT Approximation)
+# Ref: Eq (11-13) - Symmetrically extended FFT
+# --------------------------------------------------------
+class SpectralProjection(nn.Module):
+    
+    def forward (self, x):
+        # x: (B, C, H, W) - usually the HH band
+        
+        #1. Symmetric Extension (Mirroring) to 2N x 2N
+        #Ref: "Creating a symmetrically extended version... doubling size"
+        x_flip_h = torch.flip(x, [3])
+        x_flip_v = torch.flip(x, [2])
+        x_flip_hv = torch.flip(x, [2, 3])
+        
+        top = torch.cat([x, x_flip_h], dim=3)
+        bottom = torch.cat([x_flip_v, x_flip_hv], dim=3)
+        x_extended = torch.cat([top, bottom], dim=2) # (B, C, 2H, 2W)
+        
+        # 2. FFT
+        fft_coeffs = torch.fft.fft2(x_extended)
+        
+        # 3. Approximation (Real part of top-left quadrant)
+        # Ref: Eq(13)
+        
+        H, W = x.shape[2], x.shape[3]
+        zeta = fft_coeffs[:, :, :H, :W]
+        
+        # Return both for reconstruction validity, though embedding only uses zeta
+        return zeta, fft_coeffs.imag
+    
+class InverseSpectralProjection(nn.Module):
+    
+    def forward(self, zeta, imag_part_orig=None):
+        # Approximation of inverse: We assume embedding modification is symmetric
+        # In strict theory, we would modify the full FFT coeff, but paper implies
+        # operating on the projection zeta.
+        
+        # Simple reconstruction: Reverse the Real part extraction logic
+        # Note: The paper is slightly vague on the exact inverse of the approximation 
+        # so we use standard IFFT on the modified real component.
+        
+        # Re-mirror the modified zeta
+        z_flip_h = torch.flip(zeta, [3])
+        z_flip_v = torch.flip(zeta, [2])
+        z_flip_hv = torch.flip(zeta, [2, 3])
+        
+        top = torch.cat([zeta, z_flip_h], dim=3)
+        bottom = torch.cat([z_flip_v, z_flip_hv], dim=3)
+        real_extended = torch.cat([top, bottom], dim=2) # (B, C, 2H, 2W)
+        
+        complex_extended = None
+        # Use original imaginary part if available (for better fidelity), else 0
+        if imag_part_orig is not None:
+            # We must mirror the imaginary part too to maintain symmetry properties
+            # or just use the stored full FFT if we had it. 
+            # For simplicity/robustness as per "Approximation", we treat it as real signal.
+            complex_extended = torch.complex(real_extended, torch.zeros_like(real_extended))
+        else:
+            complex_extended = torch.complex(real_extended, torch.zeros_like(real_extended))
+            
+        # Inverse FFT
+        out_extended = torch.fft.ifft2(complex_extended).real
+        
+        # Crop back to N x N
+        H, W = zeta.shape[2], zeta.shape[3]
+        return out_extended[:, :, :H, :W]
+    
+# --------------------------------------------------------
+# 3. SpecGuard Encoder
+# --------------------------------------------------------
+
+class SpecGuardEncoder (nn.Module):
+    
+    def __init__ (self, config):
+        super().__init__()
+        self.dwt = DWT()
+        self.iwt = IWT()
+        self.sp = SpectralProjection()
+        self.isp = InverseSpectralProjection()
+        
+        # Convolutional Layers for Processing Spectral Domain
+        # Ref: "variable k of convolutional layers"
+        k = config['model']['conv_layers']
+        kernel_size = config['model']['kernel_size'] # e.g. 32
+        self.conv_stack = nn.Sequential()
+        
+        # Input to Conv is (B, C, H, W) - Processing Spectral Coeffs as Image
+        for i in range (k):
+            self.conv_stack.add_module (f"conv_{i}", nn.Conv2d(3, 3, kernel_size, padding=kernel_size // 2))
+            self.conv_stack.add_module(f"act_{i}", nn.LeakyReLU(0.2))
+        
+        self.strength = config['model']['strength_factor']
+        self.radius = config['model']['radius']
+        
+        # Final Smoothening Layer after Embedding
+        self.final_conv = nn.Sequential(
+            nn.Conv2d(3, 3, kernel_size, padding=kernel_size // 2),
+            nn.LeakyReLU(0.2)
+        )
+        
+    def forward (self, x, watermark):
+        
+        # x: Cover Image (B, 3, 128, 128)
+        # watermark: (B, L) binary message
+        
+        # 1. Wavelet Projection
+        LL, LH, HL, HH = self.dwt(x)
+        
+        # 2. Spectral Projection on HH band
+        zeta, _ = self.sp(HH)
+        
+        # 3. Process Spectral Features
+        zeta_feat = self.conv_stack(zeta)
+        
+        # 4. Create Radial Mask
+        # Ref: "radial mask... if distance <= r, mask=1"
+        B, C, H, W = zeta.shape
+        cx, cy = W // 2, H // 2
+        
+        y_grid, x_grid = torch.meshgrid(torch.arange(H), torch.arange(W), indexing='ij')
+        dist = torch.sqrt((x_grid - cx)**2 + (y_grid - cy)**2).to(x.device)
+        mask = (dist <= self.radius).float().unsqueeze(0).unsqueeze(0) # (1, 1, H, W)
+        
+        # 5. Prepare Watermark
+        # Expand Watermark to match Image Dimensions (B, C, H, W)
+        # Paper says "reshaped and expanded across channels"
+        # Simple Tiling Strategy
+        wm_expanded = watermark.unsqueeze(-1).unsqueeze(-1).expand(B, C, H, W)
+        # Ideally, L should match patch count, but here we broadcast for robustness
+        
+        # 6. Embed Watermark
+        # Ref: Eq (15) zeta_new = zeta_feat + M * s
+        zeta_embedded = zeta_feat + (wm_expanded * mask * self.strength)
+        
+        # 7. Final Smoothing
+        zeta_refined = self.final_conv(zeta_embedded)
+        
+        # 8. Reconstruct
+        # Eq (16) ISP
+        HH_embedded = self.isp(zeta_refined)
+        
+        # Eq (17) IWP
+        return self.iwt(LL, LH, HL, HH_embedded)
+    
+# --------------------------------------------------------
+# 4. SpecGuard Decoder
+# --------------------------------------------------------
+class SpecGuardDecoder (nn.Module):
+    
+    def __init__ (self, config):
+        super().__init__()
+        
