@@ -3,3 +3,4 @@ configs/
 datasets/
 requirements/
 training/ssrw-v1/weights/
+training/ssrw-v2/weights/
