@@ -9,9 +9,9 @@ os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 import yaml
 import torch
 import torch.nn as nn
-import torch.otim as optim
+import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.vision import transforms
+from torchvision import transforms
 from tqdm import tqdm
 import lpips
 
