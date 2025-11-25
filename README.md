@@ -104,7 +104,7 @@ Run the full test suite:
 
 ## Contributing
 
-1.  Create a new branch or fork the repository\
-2.  Add your model, experiment, or paper implementation\
-3.  Document it under `docs/model_cards/` or `docs/research-papers/`\
+1.  Create a new branch or fork the repository
+2.  Add your model, experiment, or paper implementation
+3.  Document it under `docs/model_cards/` or `docs/research-papers/`
 4.  Open a pull request
