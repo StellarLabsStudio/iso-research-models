@@ -209,4 +209,75 @@ class SpecGuardDecoder (nn.Module):
     
     def __init__ (self, config):
         super().__init__()
+        self.dwt = DWT()
+        self.sp = SpectralProjection()
         
+        # Learnable Threshold Theta
+        # Ref: "Learning threshold theta to decode each bit"
+        # Ref: "theta <- theta - eta * grad"
+        
+        self.theta = nn.Parameter(torch.tensor(config['model'['initial_theta']]))
+        
+        # Extraction Network
+        k = config['model']['conv_layers']
+        kernel_size = config['model']['kernel_size']
+        self.conv_stack = nn.Sequential()
+        for i in range(k):
+            self.conv_stack.add_module(f"conv_{i}", nn.Conv2d(3, 3, kernel_size, padding=kernel_size//2))
+            self.conv_stack.add_module(f"act_{i}", nn.LeakyReLU(0.2))
+        self.pool = nn.AdaptiveAvgPool2d((1, 1)) # Global Pooling to get bits
+        self.fc = nn.Linear(3, config['data']['watermark_len'])
+        
+    def forward (self, x):
+        
+        # 1. Wavelet Projection
+        _, _, _, HH = self.dwt(x)
+        
+        # 2. Spectral Projection
+        zeta, _ = self.sp(HH)
+        
+        # 3. Feature Extraction
+        zeta_feat = self.conv_stack(zeta)
+        
+        # 4. Extraction Logic
+        # "masked values compared against learnable threshold"
+        # We simplify the spatial mask extraction to a global pooling for the dense layer
+        # The paper describes extracting PER COORDINATE but for a vector message M,
+        # We usually map features -> M
+        
+        # Global Average Pooling of Spectral Features
+        feat_vector = self.pool(zeta_feat).flatten(1) # (B, 3)
+        
+        # Map to Message Size
+        logits = self.fc(feat_vector) # (B, L)
+        
+        # Apply Learnable Threshold Logic for Loss Calculation
+        # We return (logits - theta) so that
+        # if logits > theta -> output > 0 -> Sigmoid > 0.5 -> Bit 1
+        # if logits < theta -> output < 0 -> Sigmoid < 0.5 -> Bit 0
+        
+        return logits - self.theta        
+        
+# --------------------------------------------------------
+# 5. Discriminator (Standard PatchGAN or Simple)
+# --------------------------------------------------------
+class Discriminator (nn.Module):
+    
+    def __init__ (self, config):
+        super().__init__()
+        self.net = nn.Sequential(
+           nn.Conv2d(3, 64, 3, 2, 1),
+           nn.LeakyReLU(0.2),
+           nn.Conv2d(64, 128, 3, 2, 1),
+           nn.BatchNorm2d(128),
+           nn.LeakyReLU(0.2),
+           nn.Conv2d(128, 256, 3, 2, 1),
+           nn.BatchNorm2d(256),
+           nn.LeakyReLU(0.2), 
+           nn.AdaptiveAvgPool2d((1, 1)),
+           nn.Flatten(),
+           nn.Linear(256, 1),
+        )
+    
+    def forward (self, x):
+        return self.net(x)
