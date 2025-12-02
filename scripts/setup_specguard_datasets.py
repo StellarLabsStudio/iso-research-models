@@ -5,7 +5,7 @@ from pathlib import Path
 import glob
 from tqdm import tqdm
 
-def setup_coco_train_val(source_dir, dest_root, train_count=10000, val_count=1000):
+def setup_coco_train_val(source_dir, dest_root, train_count=4500, val_count=500):
     """
     Splits COCO images into train and val sets for SpecGuard training.
     """
@@ -44,3 +44,10 @@ def setup_coco_train_val(source_dir, dest_root, train_count=10000, val_count=100
         shutil.copy2(img, val_dir / img.name)
 
     print("COCO train/val dataset setup complete for SpecGuard.")
+    
+if __name__ == "__main__":
+    # Example usage
+    source_coco_dir = '/Users/devmody/Documents/StellarLabs/iso-research-models/datasets/SSRW/raw/coco'  # Change this to your COCO images path
+    destination_root = '/Users/devmody/Documents/StellarLabs/iso-research-models/datasets/SSRW/split' # Change this to your desired output path
+
+    setup_coco_train_val(source_coco_dir, destination_root)
